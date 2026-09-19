@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.second.hand.trading.server.dao.IdleItemHistoryDao">
+    <resultMap id="BaseResultMap" type="com.second.hand.trading.server.model.IdleItemHistoryModel">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="idle_id" jdbcType="BIGINT" property="idleId" />
+        <result column="idle_name" jdbcType="VARCHAR" property="idleName" />
+        <result column="idle_details" jdbcType="VARCHAR" property="idleDetails" />
+        <result column="picture_list" jdbcType="VARCHAR" property="pictureList" />
+        <result column="idle_price" jdbcType="DECIMAL" property="idlePrice" />
+        <result column="idle_place" jdbcType="VARCHAR" property="idlePlace" />
+        <result column="idle_label" jdbcType="INTEGER" property="idleLabel" />
+        <result column="idle_status" jdbcType="TINYINT" property="idleStatus" />
+        <result column="proof_image" jdbcType="VARCHAR" property="proofImage" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="resource_path" jdbcType="VARCHAR" property="resourcePath" />
+        <result column="original_file_name" jdbcType="VARCHAR" property="originalFileName" />
+        <result column="unzip_password" jdbcType="VARCHAR" property="unzipPassword" />
+    </resultMap>
+
+    <insert id="insert" parameterType="com.second.hand.trading.server.model.IdleItemHistoryModel">
+        insert into sh_idle_item_history (idle_id, idle_name, idle_details, picture_list,
+                                          idle_price, idle_place, idle_label, idle_status, proof_image, create_time,
+                                          resource_path, original_file_name, unzip_password)
+        values (#{idleId}, #{idleName}, #{idleDetails}, #{pictureList},
+                #{idlePrice}, #{idlePlace}, #{idleLabel}, #{idleStatus}, #{proofImage}, #{createTime},
+                #{resourcePath}, #{originalFileName}, #{unzipPassword})
+    </insert>
+
+    <select id="listByIdleId" resultMap="BaseResultMap">
+        select * from sh_idle_item_history
+        where idle_id = #{idleId}
+        order by create_time desc
+    </select>
+</mapper>

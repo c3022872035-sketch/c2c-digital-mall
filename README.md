@@ -13,8 +13,7 @@ C2C数字交易平台/
 ├── README.md
 ├── 接口文档.md
 ├── 配置示例/
-│   ├── application-example.properties
-│   └── frontend-config-example.md
+│   └── application-example.properties
 ├── 项目截图/
 ├── .gitignore
 ├── 数据库文件/

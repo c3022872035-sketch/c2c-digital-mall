@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.second.hand.trading.server.dao.IdleItemDao">
+  <resultMap id="BaseResultMap" type="com.second.hand.trading.server.model.IdleItemModel">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="idle_name" jdbcType="VARCHAR" property="idleName" />
+    <result column="idle_details" jdbcType="VARCHAR" property="idleDetails" />
+    <result column="picture_list" jdbcType="VARCHAR" property="pictureList" />
+    <result column="idle_price" jdbcType="DECIMAL" property="idlePrice" />
+    <result column="idle_place" jdbcType="VARCHAR" property="idlePlace" />
+    <result column="idle_label" jdbcType="INTEGER" property="idleLabel" />
+    <result column="release_time" jdbcType="TIMESTAMP" property="releaseTime" />
+    <result column="idle_status" jdbcType="TINYINT" property="idleStatus" />
+    <result column="user_id" jdbcType="BIGINT" property="userId" />
+    <result column="proof_image" jdbcType="VARCHAR" property="proofImage" />
+    <result column="audit_time" jdbcType="TIMESTAMP" property="auditTime" />
+    <result column="sales_count" jdbcType="INTEGER" property="salesCount" />
+    <result column="avg_rating" jdbcType="DOUBLE" property="avgRating" />
+    <result column="resource_path" jdbcType="VARCHAR" property="resourcePath" />
+    <result column="original_file_name" jdbcType="VARCHAR" property="originalFileName" />
+    <result column="unzip_password" jdbcType="VARCHAR" property="unzipPassword" />
+    <result column="file_hash" jdbcType="VARCHAR" property="fileHash" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, idle_name, idle_details, picture_list, idle_price, idle_place, idle_label, release_time,
+    idle_status, user_id, proof_image, audit_time, sales_count, avg_rating, resource_path,
+    original_file_name, unzip_password, file_hash
+  </sql>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from sh_idle_item where id = #{id,jdbcType=BIGINT}
+  </select>
+
+  <select id="getAllIdleItem" parameterType="java.lang.Long" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from sh_idle_item
+    where user_id = #{userId,jdbcType=BIGINT} and idle_status!=0 order by id desc
+  </select>
+
+  <!-- 前台列表  -->
+  <select id="findIdleItem" resultMap="BaseResultMap">
+    select i.*
+    from sh_idle_item i
+    left join sh_user u on i.user_id = u.id
+    where i.idle_status = 1
+    <if test="findValue != null and findValue != ''">
+      and (
+      i.idle_name LIKE concat('%', #{findValue}, '%')
+      or i.idle_details LIKE concat('%', #{findValue}, '%')
+      )
+    </if>
+    ORDER BY
+    <choose>
+      <when test="sortType == 0">i.release_time DESC</when>
+      <when test="sortType == 1">i.release_time ASC</when>
+      <when test="sortType == 2">i.sales_count DESC</when>
+      <when test="sortType == 3">i.sales_count ASC</when>
+      <when test="sortType == 4">i.avg_rating DESC</when>
+      <when test="sortType == 5">i.avg_rating ASC</when>
+      <when test="sortType == 6">i.idle_price ASC</when>
+      <when test="sortType == 7">i.idle_price DESC</when>
+      <otherwise>i.release_time DESC</otherwise>
+    </choose>
+    limit #{begin}, #{nums}
+  </select>
+
+  <!-- 后台/分类查询等 (全能搜索) -->
+  <select id="findIdleItemByLabel" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" />
+    from sh_idle_item i
+    where i.idle_label = #{idleLabel} and i.idle_status = 1
+    ORDER BY
+    <choose>
+      <when test="sortType == 0">i.release_time DESC</when>
+      <when test="sortType == 1">i.release_time ASC</when>
+      <when test="sortType == 2">i.sales_count DESC</when>
+      <when test="sortType == 3">i.sales_count ASC</when>
+      <when test="sortType == 4">i.avg_rating DESC</when>
+      <when test="sortType == 5">i.avg_rating ASC</when>
+      <when test="sortType == 6">i.idle_price ASC</when>
+      <when test="sortType == 7">i.idle_price DESC</when>
+      <otherwise>i.release_time DESC</otherwise>
+    </choose>
+    limit #{begin}, #{nums}
+  </select>
+
+  <select id="countIdleItem" resultType="int">
+    select COUNT(*) from sh_idle_item i where i.idle_status = 1
+    <if test="findValue != null and findValue != ''">
+      and (i.idle_name LIKE concat('%', #{findValue}, '%') or i.idle_details LIKE concat('%', #{findValue}, '%'))
+    </if>
+  </select>
+
+  <!-- 热门推荐：按销量和评分综合排序 -->
+  <select id="findHotRecommendations" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List" />
+    FROM sh_idle_item
+    WHERE idle_status = 1 AND idle_label != 10
+    ORDER BY (sales_count * 0.6 + avg_rating * 10 * 0.4) DESC
+    LIMIT #{nums}
+  </select>
+
+  <!-- 同类推荐：排除当前商品，按分值排序 -->
+  <select id="findRelatedRecommendations" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List" />
+    FROM sh_idle_item
+    WHERE idle_label = #{idleLabel}
+    AND id != #{currentId}
+    AND idle_status = 1
+    ORDER BY avg_rating DESC, sales_count DESC
+    LIMIT #{nums}
+  </select>
+
+  <!-- 增加销量 -->
+  <update id="increaseSales">
+    update sh_idle_item set sales_count = ifnull(sales_count, 0) + 1 where id = #{id}
+  </update>
+
+  <!-- 更新评分 -->
+  <update id="updateRating">
+    update sh_idle_item set avg_rating = #{rating} where id = #{id}
+  </update>
+
+  <!-- 后台专用查询 -->
+  <select id="countIdleItemByStatus" resultType="int">
+    select COUNT(*) from sh_idle_item where idle_status = #{status}
+  </select>
+
+  <select id="getIdleItemByStatus" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from sh_idle_item where idle_status = #{status} order by id desc limit #{begin}, #{nums}
+  </select>
+
+  <select id="countIdleItemForAdmin" resultType="int">
+    select COUNT(*)
+    from sh_idle_item i
+    left join sh_user u on i.user_id = u.id
+    where i.idle_status = 1
+    <if test="findValue != null and findValue != ''">
+      and (
+      i.idle_name LIKE concat('%', #{findValue}, '%')
+      or i.idle_details LIKE concat('%', #{findValue}, '%')
+      or CAST(i.id AS CHAR) LIKE concat('%', #{findValue}, '%')
+      or u.nickname LIKE concat('%', #{findValue}, '%')
+      )
+    </if>
+  </select>
+
+  <select id="findIdleItemForAdmin" resultMap="BaseResultMap">
+    select i.*
+    from sh_idle_item i
+    left join sh_user u on i.user_id = u.id
+    where i.idle_status = 1
+    <if test="findValue != null and findValue != ''">
+      and (
+      i.idle_name LIKE concat('%', #{findValue}, '%')
+      or i.idle_details LIKE concat('%', #{findValue}, '%')
+      or CAST(i.id AS CHAR) LIKE concat('%', #{findValue}, '%')
+      or u.nickname LIKE concat('%', #{findValue}, '%')
+      )
+    </if>
+    order by i.id desc
+    limit #{begin}, #{nums}
+  </select>
+
+  <select id="findIdleItem1" resultMap="BaseResultMap">
+    select i.*
+    from sh_idle_item i
+    left join sh_user u on i.user_id = u.id
+    where i.idle_status = 2
+    <if test="findValue != null and findValue != ''">
+      and (
+      i.idle_name LIKE concat('%', #{findValue}, '%')
+      or i.idle_details LIKE concat('%', #{findValue}, '%')
+      or CAST(i.id AS CHAR) LIKE concat('%', #{findValue}, '%')
+      or u.nickname LIKE concat('%', #{findValue}, '%')
+      )
+    </if>
+    order by i.id desc
+    limit #{begin}, #{nums}
+  </select>
+
+  <!-- 审核列表 -->
+  <select id="getAuditList" resultMap="BaseResultMap">
+    select i.* from sh_idle_item i left join sh_user u on i.user_id = u.id
+    <where>
+      <if test="status != null">and i.idle_status = #{status}</if>
+      <if test="status == null">and i.idle_status = 3</if>
+      <if test="searchValue != null and searchValue != ''">
+        and (i.idle_name like concat('%', #{searchValue}, '%') or u.nickname like concat('%', #{searchValue}, '%') or u.account_number like concat('%', #{searchValue}, '%'))
+      </if>
+    </where>
+    order by i.release_time desc limit #{begin}, #{nums}
+  </select>
+
+  <select id="countAuditList" resultType="int">
+    select count(*) from sh_idle_item i left join sh_user u on i.user_id = u.id
+    <where>
+      <if test="status != null">and i.idle_status = #{status}</if>
+      <if test="status == null">and i.idle_status = 3</if>
+      <if test="searchValue != null and searchValue != ''">
+        and (i.idle_name like concat('%', #{searchValue}, '%') or u.nickname like concat('%', #{searchValue}, '%') or u.account_number like concat('%', #{searchValue}, '%'))
+      </if>
+    </where>
+  </select>
+
+  <select id="findIdleByList" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" /> from sh_idle_item where id in
+    <foreach collection="idList" index="index" item="id" open="(" separator="," close=")">#{id}</foreach>
+    order by id desc
+  </select>
+
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+    delete from sh_idle_item where id = #{id,jdbcType=BIGINT}
+  </delete>
+
+  <insert id="insert" keyColumn="id" keyProperty="id" parameterType="com.second.hand.trading.server.model.IdleItemModel" useGeneratedKeys="true">
+    insert into sh_idle_item (idle_name, idle_details, picture_list,
+                              idle_price, idle_place, idle_label,
+                              release_time, idle_status, user_id,
+                              proof_image, audit_time, resource_path,
+                              original_file_name, unzip_password, file_hash)
+    values (#{idleName,jdbcType=VARCHAR}, #{idleDetails,jdbcType=VARCHAR}, #{pictureList,jdbcType=VARCHAR},
+            #{idlePrice,jdbcType=DECIMAL}, #{idlePlace,jdbcType=VARCHAR}, #{idleLabel,jdbcType=INTEGER},
+            #{releaseTime,jdbcType=TIMESTAMP}, #{idleStatus,jdbcType=TINYINT}, #{userId,jdbcType=BIGINT},
+            #{proofImage,jdbcType=VARCHAR}, #{auditTime,jdbcType=TIMESTAMP}, #{resourcePath,jdbcType=VARCHAR},
+            #{originalFileName,jdbcType=VARCHAR}, #{unzipPassword,jdbcType=VARCHAR}, #{fileHash,jdbcType=VARCHAR})
+  </insert>
+
+  <insert id="insertSelective" keyColumn="id" keyProperty="id" parameterType="com.second.hand.trading.server.model.IdleItemModel" useGeneratedKeys="true">
+    insert into sh_idle_item
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="idleName != null">idle_name,</if>
+      <if test="idleDetails != null">idle_details,</if>
+      <if test="pictureList != null">picture_list,</if>
+      <if test="idlePrice != null">idle_price,</if>
+      <if test="idlePlace != null">idle_place,</if>
+      <if test="idleLabel != null">idle_label,</if>
+      <if test="releaseTime != null">release_time,</if>
+      <if test="idleStatus != null">idle_status,</if>
+      <if test="userId != null">user_id,</if>
+      <if test="proofImage != null">proof_image,</if>
+      <if test="auditTime != null">audit_time,</if>
+      <if test="resourcePath != null">resource_path,</if>
+      <if test="originalFileName != null">original_file_name,</if>
+      <if test="unzipPassword != null">unzip_password,</if>
+      <if test="fileHash != null">file_hash,</if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="idleName != null">#{idleName,jdbcType=VARCHAR},</if>
+      <if test="idleDetails != null">#{idleDetails,jdbcType=VARCHAR},</if>
+      <if test="pictureList != null">#{pictureList,jdbcType=VARCHAR},</if>
+      <if test="idlePrice != null">#{idlePrice,jdbcType=DECIMAL},</if>
+      <if test="idlePlace != null">#{idlePlace,jdbcType=VARCHAR},</if>
+      <if test="idleLabel != null">#{idleLabel,jdbcType=INTEGER},</if>
+      <if test="releaseTime != null">#{releaseTime,jdbcType=TIMESTAMP},</if>
+      <if test="idleStatus != null">#{idleStatus,jdbcType=TINYINT},</if>
+      <if test="userId != null">#{userId,jdbcType=BIGINT},</if>
+      <if test="proofImage != null">#{proofImage,jdbcType=VARCHAR},</if>
+      <if test="auditTime != null">#{auditTime,jdbcType=TIMESTAMP},</if>
+      <if test="resourcePath != null">#{resourcePath,jdbcType=VARCHAR},</if>
+      <if test="originalFileName != null">#{originalFileName,jdbcType=VARCHAR},</if>
+      <if test="unzipPassword != null">#{unzipPassword,jdbcType=VARCHAR},</if>
+      <if test="fileHash != null">#{fileHash,jdbcType=VARCHAR},</if>
+    </trim>
+  </insert>
+
+  <update id="updateByPrimaryKeySelective" parameterType="com.second.hand.trading.server.model.IdleItemModel">
+    update sh_idle_item
+    <set>
+      <if test="idleName != null">idle_name = #{idleName,jdbcType=VARCHAR},</if>
+      <if test="idleDetails != null">idle_details = #{idleDetails,jdbcType=VARCHAR},</if>
+      <if test="pictureList != null">picture_list = #{pictureList,jdbcType=VARCHAR},</if>
+      <if test="idlePrice != null">idle_price = #{idlePrice,jdbcType=DECIMAL},</if>
+      <if test="idlePlace != null">idle_place = #{idlePlace,jdbcType=VARCHAR},</if>
+      <if test="idleLabel != null">idle_label = #{idleLabel,jdbcType=INTEGER},</if>
+      <if test="releaseTime != null">release_time = #{releaseTime,jdbcType=TIMESTAMP},</if>
+      <if test="idleStatus != null">idle_status = #{idleStatus,jdbcType=TINYINT},</if>
+      <if test="proofImage != null">proof_image = #{proofImage,jdbcType=VARCHAR},</if>
+      <if test="auditTime != null">audit_time = #{auditTime,jdbcType=TIMESTAMP},</if>
+      <if test="resourcePath != null">resource_path = #{resourcePath,jdbcType=VARCHAR},</if>
+      <if test="originalFileName != null">original_file_name = #{originalFileName,jdbcType=VARCHAR},</if>
+      <if test="unzipPassword != null">unzip_password = #{unzipPassword,jdbcType=VARCHAR},</if>
+      <if test="fileHash != null">file_hash = #{fileHash,jdbcType=VARCHAR},</if>
+    </set>
+    where id = #{id,jdbcType=BIGINT}
+  </update>
+
+  <update id="updateByPrimaryKey" parameterType="com.second.hand.trading.server.model.IdleItemModel">
+    update sh_idle_item
+    set idle_name = #{idleName,jdbcType=VARCHAR},
+        idle_details = #{idleDetails,jdbcType=VARCHAR},
+        picture_list = #{pictureList,jdbcType=VARCHAR},
+        idle_price = #{idlePrice,jdbcType=DECIMAL},
+        idle_place = #{idlePlace,jdbcType=VARCHAR},
+        idle_label = #{idleLabel,jdbcType=INTEGER},
+        release_time = #{releaseTime,jdbcType=TIMESTAMP},
+        idle_status = #{idleStatus,jdbcType=TINYINT},
+        user_id = #{userId,jdbcType=BIGINT},
+        proof_image = #{proofImage,jdbcType=VARCHAR},
+        audit_time = #{auditTime,jdbcType=TIMESTAMP},
+        resource_path = #{resourcePath,jdbcType=VARCHAR},
+        original_file_name = #{originalFileName,jdbcType=VARCHAR},
+        file_hash = #{fileHash,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=BIGINT}
+  </update>
+
+  <select id="countItemsByCategory" resultType="java.util.Map">
+    select idle_label as category, count(*) as count
+    from sh_idle_item where idle_status = 1 group by idle_label order by count desc
+  </select>
+
+  <!-- 统计分类下的商品数量 -->
+  <select id="countIdleItemByLabel" resultType="int">
+    select COUNT(*) from sh_idle_item
+    where idle_label = #{idleLabel} and idle_status = 1
+  </select>
+
+  <select id="countByFileHash" resultType="java.lang.Integer">
+    SELECT count(*) FROM sh_idle_item
+    WHERE file_hash = #{fileHash} AND idle_status != 0
+  </select>
+
+  <select id="findItemsMissingHash" resultMap="BaseResultMap">
+    SELECT <include refid="Base_Column_List" />
+    FROM sh_idle_item
+    WHERE resource_path IS NOT NULL AND resource_path != ''
+  </select>
+
+  <update id="syncSalesCount">
+    UPDATE sh_idle_item i
+    SET i.sales_count = (
+      SELECT COUNT(*) FROM sh_order o
+      WHERE o.idle_id = i.id AND o.payment_status = 1
+    )
+  </update>
+
+  <update id="syncAvgRating">
+    UPDATE sh_idle_item i
+    SET i.avg_rating = (
+      SELECT IFNULL(ROUND(AVG(rating), 1), 0)
+      FROM sh_comment c
+      WHERE c.idle_id = i.id
+    )
+  </update>
+
+</mapper>

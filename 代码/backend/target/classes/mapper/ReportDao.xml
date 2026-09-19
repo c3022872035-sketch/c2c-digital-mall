@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.second.hand.trading.server.dao.ReportDao">
+    <resultMap id="BaseResultMap" type="com.second.hand.trading.server.model.ReportModel">
+        <id column="id" jdbcType="BIGINT" property="id" />
+        <result column="user_id" jdbcType="BIGINT" property="userId" />
+        <result column="idle_id" jdbcType="BIGINT" property="idleId" />
+        <result column="reported_user_id" jdbcType="BIGINT" property="reportedUserId" />
+        <result column="reason" jdbcType="VARCHAR" property="reason" />
+        <result column="content" jdbcType="VARCHAR" property="content" />
+        <result column="status" jdbcType="TINYINT" property="status" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    </resultMap>
+
+    <insert id="insert" parameterType="com.second.hand.trading.server.model.ReportModel">
+        insert into sh_report (user_id, idle_id, reported_user_id, reason, content, status, create_time)
+        values (#{userId}, #{idleId}, #{reportedUserId}, #{reason}, #{content}, #{status}, #{createTime})
+    </insert>
+
+    <select id="countPending" resultType="int">
+        select count(*) from sh_report where status = 0
+    </select>
+
+    <select id="getReportList" resultMap="BaseResultMap">
+        select r.*
+        from sh_report r
+        left join sh_user u1 on r.user_id = u1.id
+        left join sh_user u2 on r.reported_user_id = u2.id
+        left join sh_idle_item i on r.idle_id = i.id
+        <where>
+            <if test="status != null">
+                and r.status = #{status}
+            </if>
+            <if test="searchValue != null and searchValue != ''">
+                and (
+                CAST(r.id AS CHAR) like concat('%', #{searchValue}, '%')
+                or u1.nickname like concat('%', #{searchValue}, '%')
+                or u2.nickname like concat('%', #{searchValue}, '%')
+                or u1.account_number like concat('%', #{searchValue}, '%')
+                or u2.account_number like concat('%', #{searchValue}, '%')
+                or i.idle_name like concat('%', #{searchValue}, '%')
+                or r.reason like concat('%', #{searchValue}, '%')
+                )
+            </if>
+        </where>
+        order by r.create_time desc
+        limit #{begin}, #{nums}
+    </select>
+
+    <select id="countReport" resultType="int">
+        select count(*)
+        from sh_report r
+        left join sh_user u1 on r.user_id = u1.id
+        left join sh_user u2 on r.reported_user_id = u2.id
+        left join sh_idle_item i on r.idle_id = i.id
+        <where>
+            <if test="status != null">
+                and r.status = #{status}
+            </if>
+            <if test="searchValue != null and searchValue != ''">
+                and (
+                CAST(r.id AS CHAR) like concat('%', #{searchValue}, '%')
+                or u1.nickname like concat('%', #{searchValue}, '%')
+                or u2.nickname like concat('%', #{searchValue}, '%')
+                or u1.account_number like concat('%', #{searchValue}, '%')
+                or u2.account_number like concat('%', #{searchValue}, '%')
+                or i.idle_name like concat('%', #{searchValue}, '%')
+                or r.reason like concat('%', #{searchValue}, '%')
+                )
+            </if>
+        </where>
+    </select>
+
+    <update id="updateStatus">
+        update sh_report set status = #{status} where id = #{id}
+    </update>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select * from sh_report where id = #{id}
+    </select>
+</mapper>
